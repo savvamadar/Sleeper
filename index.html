@@ -147,6 +147,7 @@ var availableHexes = [];
 var brokenPieces = [];
 var niceColors = ['rgb(43,166,255)','rgb(222,54,115)','rgb(255,198,96)','rgb(161,78,112)'];
 var gameStarted = false;
+
 function mousePressed(event){
 	if(event.button==0){
 		if(gameStarted==true){
@@ -204,6 +205,65 @@ function mousePressed(event){
 	}
 }
 
+function touchPressed(event){
+	for(var q=0;q<event.touches.length;q++){
+		if(gameStarted==true){
+			var bodiesUnder = Matter.Query.point(wholeHexesBodies, { x: event.touches[q].pageX-(canvas.width/2), y: event.touches[q].pageY });
+			if(bodiesUnder.length>0){
+				var topMost = bodiesUnder[bodiesUnder.length-1];
+				topMost.velocity = {x:0, y:0};
+				topMost.isStatic = true;
+				availableHexes[availableHexes.length] = topMost;
+				//console.log("rel x = "+((event.pageX-(canvas.width/2)) - topMost.position.x));
+				var xr = lerp_single_inverse(topMost.bounds.min.x, topMost.bounds.max.x, event.touches[q].pageX-(canvas.width/2));
+				var yr = lerp_single_inverse(topMost.bounds.min.y, topMost.bounds.max.y, event.touches[q].pageY);
+				points++;
+				testHex = new HexagonPieces(topMost.shsz, topMost.shrdamt, xr, yr);
+				for(var i =0;i<testHex.shards.length;i++){
+					var verts = Matter.Vertices.fromPath(testHex.shards[i]);
+					var xtest = Matter.Bodies.fromVertices(0, 0, verts, {
+								isStatic: false,
+								density: 0.04,
+								friction: 0.1,
+								frictionAir: 0.00001,
+								restitution: 0.2,
+								render: {
+									visible: true,
+									fillStyle: niceColors[Math.floor(Math.random()*niceColors.length)],
+									lineWidth: 0
+								}
+							}, true);
+					if(typeof xtest !== undefined){
+						Matter.World.add(world, xtest);
+						Matter.Body.setPosition(xtest, topMost.position);
+						//Matter.Body.applyForce(xtest,{x:0,y:0},{x:lerp_single(-0.001,0.001,Math.random()),y:-0.001*(canvas.height/300)});
+						brokenPieces[brokenPieces.length] = xtest;
+					}
+					else{
+						Matter.Composite.remove(world, xtest);
+					}
+				}
+				Matter.Body.setPosition(topMost, {x: -200, y: canvas.height+200});
+				playAudio('fx_'+(Math.floor(Math.random()*6)+1)+".wav",false,0.33);
+				//Matter.Body.setPosition(topMost, {x: 200, y: 200});
+			}
+		}
+		else{
+			var bodiesUnder = Matter.Query.point(startGameHex, { x: event.touches[q].pageX-(canvas.width/2), y: event.touches[q].pageY });
+			if(bodiesUnder.length>0){
+				bodiesUnder[0].render.fillStyle='rgb('+(Math.random()*255)+','+(Math.random()*255)+','+(Math.random()*255)+')';
+				bodiesUnder[0].isStatic = false;
+				Matter.Body.applyForce(bodiesUnder[0],{x:0,y:0},{x:0,y:-50});
+				startGame();
+				playAudio('sound.wav',false,0.45);
+				playAudio('Origen - Dance Of The Clouds.wav',true,0.66);
+			}
+		}
+	}
+}
+
+
+
 var audios =[];
 function playAudio(file, loops, vol){
 	console.log(file);
@@ -227,7 +287,7 @@ function playAudio(file, loops, vol){
 }
 
 document.addEventListener("mousedown", mousePressed);
-
+document.addEventListener("touchstart", touchPressed);
 
 </script>
 </body>
