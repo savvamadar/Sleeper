@@ -251,9 +251,7 @@ function touchPressed(event){
 		else{
 			var bodiesUnder = Matter.Query.point(startGameHex, { x: event.touches[q].pageX-(canvas.width/2), y: event.touches[q].pageY });
 			if(bodiesUnder.length>0){
-				window.alert(bodiesUnder[0].render.fillStyle);
 				bodiesUnder[0].render.fillStyle='rgb('+Math.floor(Math.random()*255)+','+Math.floor(Math.random()*255)+','+Math.floor(Math.random()*255)+')';
-				window.alert(bodiesUnder[0].render.fillStyle);
 				bodiesUnder[0].isStatic = false;
 				Matter.Body.applyForce(bodiesUnder[0],{x:0,y:0},{x:0,y:-50});
 				startGame();
