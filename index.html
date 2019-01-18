@@ -281,6 +281,7 @@ function playAudio(file, loops, vol){
 	if(audioSourceFound==false){
 		audios[audios.length]= new Audio(file);
 		audios[audios.length-1].volume = vol;
+		audios[audios.length-1].loop = loops;
 		audios[audios.length-1].play();
 	}
 	
