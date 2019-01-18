@@ -1,0 +1,234 @@
+<html>
+<head>
+<script src="https://raw.githubusercontent.com/savvamadar/Sleeper/master/decomp.js"></script>
+<script src="https://raw.githubusercontent.com/savvamadar/Sleeper/master/matter.js"></script>
+<script src="https://raw.githubusercontent.com/savvamadar/Sleeper/master/hexagon.js"></script>
+<script src="https://raw.githubusercontent.com/savvamadar/Sleeper/master/hexagonpieces.js"></script>
+<style>
+html, body {
+  width:  100%;
+  height: 100%;
+  margin: 0px;
+  background-color: dimgray;
+}
+
+canvas {
+    padding-left: 0;
+    padding-right: 0;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+}
+</style>
+</head>
+<body>
+<canvas id="world"></canvas>
+<script>
+function lerp_single(min, max, lerpAmount){
+	return min+(lerpAmount*(max-min));
+}
+
+function lerp_single_inverse(min, max, value){
+	return (value - min) / (max - min);
+}
+
+function lerp_side(minx, miny, maxx, maxy, lerpAmount){
+	return [minx+(lerpAmount*(maxx-minx)), miny+(lerpAmount*(maxy-miny)), 1];
+}
+
+function startGame(){
+
+	gameStarted = true;
+	hexagonsLeft = 15;
+	for(var i=0; i<hexagonsLeft; i++){
+		wholeHexes[i] = new ShapeHexagon((Math.floor(Math.random()*(60-25)))+25,(Math.floor(Math.random()*(5-3)))+3);
+		Matter.World.add(world, wholeHexes[i].body);
+		wholeHexes[i].body.isStatic = true;
+		wholeHexesBodies[i] = wholeHexes[i].body;
+		Matter.Body.setPosition(wholeHexes[i].body, {x:-200, y: canvas.height+200});
+	}
+
+
+	for(var i=0; i< wholeHexesBodies.length;i++){
+		availableHexes[i] = wholeHexesBodies[i];
+	}
+	var rndInterval = 10;
+	var minimal = 10;
+	var secondaryInterval = 0;
+	setInterval(function(){
+		rndInterval--;
+		if(rndInterval<=0 && availableHexes.length>0){
+			rndInterval = (Math.random()*5)+minimal;
+			if(secondaryInterval>=3 && minimal>1){
+				minimal--;
+				secondaryInterval = 0;
+			}
+			else if(secondaryInterval<3){
+				secondaryInterval++;
+			}
+			var newHex = availableHexes.shift();
+			Matter.Body.setPosition(newHex, {x: Math.floor(Math.random()*(canvas.width-160))+80, y: canvas.height});
+			newHex.isStatic = false;
+			newHex.velocity = {x:0, y:0};
+			var dir = Math.random()<0.5?-1:1;
+
+			Matter.Body.applyForce(newHex,{x:0,y:0},{x:((10-minimal)/2500)*newHex.mass*dir,y:-0.03*newHex.mass*(canvas.height/300)});
+		}
+		for(var i=0;i<wholeHexesBodies.length;i++){
+			if(wholeHexesBodies[i].position.y>(canvas.height+300)){
+				hexagonsLeft--;
+				wholeHexesBodies.splice(i,1);
+				i--;
+			}
+		}
+		for(var i =0;i<brokenPieces.length;i++){
+			if(brokenPieces[i].position.y>(canvas.height+300)){
+				brokenPieces[i].isStatic = true;
+				Matter.Composite.remove(world, brokenPieces[i]);
+				brokenPieces.splice(i,1);
+				i--;
+			}
+		}
+	}, 150);
+}
+
+var wholeHexes = [];
+var wholeHexesBodies = [];
+var test;
+var engine;
+var world;
+var render;
+var canvas;
+var hexagonsLeft = 0;
+var points = 0;
+var startGameHex=[];
+window.addEventListener('load', function() {
+
+	canvas = document.getElementById('world');
+	canvas.width = window.innerWidth/2;
+	canvas.height = canvas.width>window.innerHeight?window.innerHeight-30:canvas.width;
+	var ctx = canvas.getContext('2d');
+	
+	engine = Matter.Engine.create();
+	world = engine.world;
+	render = Matter.Render.create({
+		canvas: canvas,
+		engine: engine,
+		options: {
+			width: canvas.width,
+			height: canvas.height,
+			background: 'black',
+			wireframes: false,
+			showAngleIndicator: false
+		}
+	});
+	
+	Matter.Events.on(render, 'afterRender', function(event) {
+		if(gameStarted){
+			ctx.fillStyle = 'white';
+			ctx.font = "30px Arial";
+			ctx.fillText("Hexagons Left: "+hexagonsLeft, 20, 40);
+			ctx.fillText("Points: "+points, 20, 80);
+		}
+    });
+	
+	Matter.Engine.run(engine);
+	Matter.Render.run(render);
+	
+	
+	startGameHex[0] = new ShapeHexagon(100,(Math.floor(Math.random()*(5)))+10).body;
+	Matter.World.add(world, startGameHex[0]);
+	startGameHex[0].isStatic = true;
+	Matter.Body.setPosition(startGameHex[0], {x: canvas.width/2, y: canvas.height/2});
+	
+});
+
+var availableHexes = [];
+var brokenPieces = [];
+var niceColors = ['rgb(43,166,255)','rgb(222,54,115)','rgb(255,198,96)','rgb(161,78,112)'];
+var gameStarted = false;
+function mousePressed(event){
+	if(event.button==0){
+		if(gameStarted==true){
+			var bodiesUnder = Matter.Query.point(wholeHexesBodies, { x: event.pageX-(canvas.width/2), y: event.pageY });
+			if(bodiesUnder.length>0){
+				var topMost = bodiesUnder[bodiesUnder.length-1];
+				topMost.velocity = {x:0, y:0};
+				topMost.isStatic = true;
+				availableHexes[availableHexes.length] = topMost;
+				//console.log("rel x = "+((event.pageX-(canvas.width/2)) - topMost.position.x));
+				var xr = lerp_single_inverse(topMost.bounds.min.x, topMost.bounds.max.x, event.pageX-(canvas.width/2));
+				var yr = lerp_single_inverse(topMost.bounds.min.y, topMost.bounds.max.y, event.pageY);
+				points++;
+				testHex = new HexagonPieces(topMost.shsz, topMost.shrdamt, xr, yr);
+				for(var i =0;i<testHex.shards.length;i++){
+					var verts = Matter.Vertices.fromPath(testHex.shards[i]);
+					var xtest = Matter.Bodies.fromVertices(0, 0, verts, {
+								isStatic: false,
+								density: 0.04,
+								friction: 0.1,
+								frictionAir: 0.00001,
+								restitution: 0.2,
+								render: {
+									visible: true,
+									fillStyle: niceColors[Math.floor(Math.random()*niceColors.length)],
+									lineWidth: 0
+								}
+							}, true);
+					if(typeof xtest !== undefined){
+						Matter.World.add(world, xtest);
+						Matter.Body.setPosition(xtest, topMost.position);
+						//Matter.Body.applyForce(xtest,{x:0,y:0},{x:lerp_single(-0.001,0.001,Math.random()),y:-0.001*(canvas.height/300)});
+						brokenPieces[brokenPieces.length] = xtest;
+					}
+					else{
+						Matter.Composite.remove(world, xtest);
+					}
+				}
+				Matter.Body.setPosition(topMost, {x: -200, y: canvas.height+200});
+				playAudio('https://github.com/savvamadar/Sleeper/blob/master/fx_1'+(Math.floor(Math.random()*6)+1)+".wav?raw=true",false,0.33);
+				//Matter.Body.setPosition(topMost, {x: 200, y: 200});
+			}
+		}
+		else{
+			var bodiesUnder = Matter.Query.point(startGameHex, { x: event.pageX-(canvas.width/2), y: event.pageY });
+			if(bodiesUnder.length>0){
+				bodiesUnder[0].render.fillStyle='rgb('+(Math.random()*255)+','+(Math.random()*255)+','+(Math.random()*255)+')';
+				bodiesUnder[0].isStatic = false;
+				Matter.Body.applyForce(bodiesUnder[0],{x:0,y:0},{x:0,y:-50});
+				startGame();
+				playAudio('https://github.com/savvamadar/Sleeper/blob/master/sound.wav?raw=true',false,0.45);
+				playAudio('https://github.com/savvamadar/Sleeper/blob/master/Origen%20-%20Dance%20Of%20The%20Clouds.wav?raw=true',true,0.66);
+			}
+		}
+	}
+}
+
+var audios =[];
+function playAudio(file, loops, vol){
+	console.log(file);
+	var audioSourceFound = false;
+	for(var i =0;i<audios.length;i++){
+		if(audios[i].ended){
+			audios[i].src = file;
+			audios[i].volume = vol;
+			audios[i].loop = loops;
+			audios[i].play();
+			i = audios.length;
+			audioSourceFound = true;
+		}
+	}
+	if(audioSourceFound==false){
+		audios[audios.length]= new Audio(file);
+		audios[audios.length-1].volume = vol;
+		audios[audios.length-1].play();
+	}
+	
+}
+
+document.addEventListener("mousedown", mousePressed);
+
+
+</script>
+</body>
+</html>
